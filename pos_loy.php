@@ -18,7 +18,7 @@ function log_to_file($message) {
     file_put_contents($logfile, date('Y-m-d H:i:s') . " - " . $message . PHP_EOL, FILE_APPEND);
 }
 // Discord Webhook URL
-$webhookurl = 'your discord webhook';
+$webhookurl = 'discord webhook url';
 
 // 函數：發送訊息到 Discord Webhook
 function sendToDiscord($message) {
@@ -27,7 +27,7 @@ function sendToDiscord($message) {
     $json_data = json_encode([
         "content" => $message,
         "username" => "交易紀錄",  // 可自定義用戶名
-        "avatar_url" => "https://i.imgur.com/LpociNl.png",
+        "avatar_url" => "https://i.imgur.com/your.jpg",
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
     $ch = curl_init($webhookurl);
@@ -53,6 +53,9 @@ $orderItems = $receipt['line_items'];
 $payments = $receipt['payments'];
 $totalAmount = $receipt['total_money'];
 $totalTax = $receipt['total_tax'];
+$refund_for = $receipt['refund_for'];
+$cancelled_at = $receipt['cancelled_at'];
+
 
 // 判斷載具類型
 $CarrierNum = null;
@@ -69,6 +72,12 @@ foreach ($orderItems as $index => $item) {
     }
 }
 
+//當確認"cancelled_at"、"refund_for"資料欄位為空，才開立發票
+if ($refund_for !== null || $cancelled_at !== null ) {
+    log_to_file($receipt['receipt_number'].'-'.'此訂單為取消、或退款交易，不開發票');
+    exit;
+}
+
 // 當載具為 null 時，發送訊息到 Discord 並記錄日誌
 if ($CarrierNum === null) {
     $logMessage = '💼 '.date('Y-m-d H:i:s　').'B2B待開發票'."\n訂單編號".$receipt['receipt_number'].
@@ -81,6 +90,7 @@ if ($CarrierNum === null) {
     sendToDiscord($logMessage);
 	exit;
 }
+
 
 
 
@@ -153,8 +163,8 @@ function curl_work($url = '', $parameter = '')
 $postDataStr = http_build_query($invoiceData);
 
 // 加密與發送到 ezPay
-$SECRET_KEY = 'your ezpay key';
-$IV = 'your ezpay IV';
+$SECRET_KEY = 'your key';
+$IV = 'your IV';
 
 $post_data = trim(bin2hex(openssl_encrypt(addPadding($postDataStr), 
 'AES-256-CBC', $SECRET_KEY, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING, $IV)));
@@ -162,7 +172,7 @@ $post_data = trim(bin2hex(openssl_encrypt(addPadding($postDataStr),
 // 發送至 ezPay
 $url = 'https://cinv.ezpay.com.tw/Api/invoice_issue';
 $transactionData = array(
-    'MerchantID_' => '33904488',
+    'MerchantID_' => '12345678',
     'PostData_' => $post_data
 );
 
@@ -189,7 +199,7 @@ if ($responseData['Status'] === 'SUCCESS') {
     // 發票開立成功
     log_to_file(json_encode($responseData));  // 記錄成功的回應
     $successMessage = "✅ 發票開立成功！".date('Y-m-d H:i:s　')."\n訂單編號：".$receipt['receipt_number']."　發票號碼：".$resultData['InvoiceNumber'] 
-	. "\n- 總金額：NT$".$totalAmount."　付款方式：" . $payments[0]['name'].'－'.$item['item_name'];
+	. "\n- 總金額：NT$".$totalAmount."　付款方式：" . $payments[0]['name']."\n".$item['item_name'];
     sendToDiscord($successMessage);
 	
 } else {
