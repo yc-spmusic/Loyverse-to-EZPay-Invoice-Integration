@@ -74,7 +74,7 @@ foreach ($orderItems as $index => $item) {
 
 //當確認"cancelled_at"、"refund_for"資料欄位為空，才開立發票
 if ($refund_for !== null || $cancelled_at !== null ) {
-    log_to_file($receipt['receipt_number'].'-'.'此訂單為取消、或退款交易，不開發票');
+    log_to_file($receipt['receipt_number'].'-此訂單為取消、或退款交易，不開發票');
     exit;
 }
 
